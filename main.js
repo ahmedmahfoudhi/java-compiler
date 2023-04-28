@@ -1,6 +1,7 @@
 const { BrowserWindow, app, ipcMain, dialog, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const {exec} = require('child_process');
 
 
 require("electron-reloader")(module);
@@ -8,7 +9,7 @@ require("electron-reloader")(module);
 let mainWindow;
 
 const notify = (type,content) => {
-    mainWindow.webContents.send({type,content});
+    mainWindow.webContents.send('notification-triggered',{type,content});
 }
 
 const createWindow = () => {
@@ -70,3 +71,34 @@ ipcMain.on("save-document-triggered", (_,{filePath, content}) => {
         }
     })
 });
+
+ipcMain.on('compile-file-triggered',(_,{filePath,content}) => {
+
+
+    fs.writeFile(filePath,content,err => {
+        if(err){
+            notify('error', "Verify that file exists");
+        }else{
+            
+            const command = "compiler/exemple < " + filePath;
+            exec(command,(error,stdout, stderr) => {
+                if(error){
+                    console.log(error[0], error[-1]);
+                    notify('error', stderr);
+                }else{
+                    notify("success", "Compiled Successfully")
+                }
+            })
+            fs.readFile(filePath, "utf8",(error, content) => {
+                if(error){
+                    notify('error',error);
+                }else{
+                    mainWindow.webContents.send('document-opened', {filePath, content});
+                }
+            })
+
+        }
+    })
+});
+
+

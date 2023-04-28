@@ -29,7 +29,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const handleCompile = () => {
         if(!curFilePath) return;
-        ipcRenderer.send('compile-file-triggered',textArea.value);
+        ipcRenderer.send('compile-file-triggered',{filePath: curFilePath, content: textArea.value});
     }
 
     panel.openDoc.addEventListener('click',handleOpenDocument);
@@ -56,11 +56,12 @@ window.addEventListener('DOMContentLoaded', () => {
         showNotification(type,content);
     })
 
+
     const showNotification = (type="success", content="") => {
         notification.notifContainer.classList.remove('display-none');
-        notification.body.textContent = 'Body body body body';
+        notification.body.textContent = content;
         notification.notif.classList.add(type);
-        setTimeout(() => removeNotification(type), 3000);
+        setTimeout(() => removeNotification(type), 900000000);
     }
 
     const removeNotification = (type) => {
