@@ -1,0 +1,133 @@
+@import url('../node_modules/font-awesome/css/font-awesome.min.css');
+*{
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    font-family: 'arial', 'sans-serif';
+}
+
+html{
+    height: 100vh;
+}
+body{
+    min-height: 100%;
+    color: #FFF;
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* Track */
+::-webkit-scrollbar-track {
+    background: #706fd3;
+}
+  
+  /* Handle */
+::-webkit-scrollbar-thumb {
+    background: #9e3b3b;
+}
+  
+  /* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.panel-container{
+    background: #706fd3;
+}
+
+ul.panel{
+    display: flex;
+    list-style: none;
+}
+
+.panel-item{
+    cursor: pointer;
+    padding: 10px;
+    color: #fff;
+    display: flex;
+    gap: 5px;
+}
+
+li.panel-item:hover{
+    color: #706fd3;
+    background: #fff;
+    transition: .2s;
+}
+
+.main{
+    background: #2c2c54;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.file-name{
+    display: inline-block;
+    padding: 10px 20px;
+    border-bottom: 3px solid #706fd3;
+    color: inherit;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.editor-container{
+    flex:1;
+    display: flex;
+}
+
+.editor{
+    background-color: inherit;
+    color: inherit;
+    width: 100%;
+    border: none;
+    resize: none;
+    font-size: 18px;
+}
+
+.editor:focus{
+    outline: none;
+    border: none;
+}
+
+.notification-container{
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    top: 0;
+    left: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #00000091;
+    transition: .5s;
+    
+}
+.notification{
+    padding: 15px;
+}
+
+.success{
+    background-color: #EFE;
+    border: 1px solid #DED;
+    color: #9A9;
+}
+
+.error {
+    background-color: #FEE;
+    border: 1px solid #EDD;
+    color: #A66;
+}
+
+
+
+.display-none{
+    display: none;
+}
+
+.disabled{
+    opacity: .5;
+    cursor: not-allowed;
+}
+

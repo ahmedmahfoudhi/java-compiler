@@ -1,0 +1,27 @@
+{
+  "name": "java-compiler",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmedmahfoudhi/java-compiler.git"
+  },
+  "author": "Ahmed Mahfoudhi",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ahmedmahfoudhi/java-compiler/issues"
+  },
+  "homepage": "https://github.com/ahmedmahfoudhi/java-compiler#readme",
+  "devDependencies": {
+    "electron": "^24.1.3",
+    "electron-reloader": "^1.2.3"
+  },
+  "dependencies": {
+    "font-awesome": "^4.7.0"
+  }
+}
