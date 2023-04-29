@@ -1,43 +1,30 @@
-#ifndef HEADER_FILE
-#define HEADER_FILE
+#include "stdio.h"
+#include <stdlib.h>
+#include <string.h>
 
-const int MAX = 100; 	// Size Max of Symbol table
+char *TYPES[] = {"method", "variable", "class"};
+typedef enum
+{
+    METHOD,
+    VARIABLE,
+    CLASS,
+} symbol_type;
 
-extern int line;
+typedef struct scope
+{
+    int parent;
+    int fils[100];
+    int nbFils;
+} scope_tree;
 
-  
-typedef struct node {
-    char * identifier;
-	char * scope; 
-	char * type;
-	int test_init;
-	int test_use;
-	int nbr_args;
-    struct node* next;
-   
-} Node;
-
-int search_index_element_code(char * id);
-  
-int search_index(); 
-
-int insert( char * id,  char * scope,  char * type, int test_init , int test_use, int nbr_args);
-  
-Node * find( char * id);
-  
-int deleteRecord( char * id);
-  
-int modify( char * id,  char * scope,  char * type, int test_init , int test_use, int nbr_args);
-
-void insert_declaration( char * id,  char * scope,  char * type, int test_init , int test_use, int nbr_args);
-    
-void verif_var_dec_bien_init_use();
-    
-void init_var( char * id);
-    
-void use_var( char * id);
-
-void print(Node * node);
-
-
-#endif
+typedef struct
+{
+    char name[100];
+    symbol_type type;
+    int scope;
+    int isInit; // =1 if the identifier is initialisated and 0 otherwise
+    int isUsed; // =  =1 if the identifier is used and 0 otherwise
+    int nbArgs; // contains the number of arguments if the identifier is a method
+    int line;
+    int isMethodArg;
+} node;

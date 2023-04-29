@@ -12,7 +12,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const notification = {
         notifContainer: document.querySelector('.notification-container'),
         notif: document.querySelector('.notification'),
-        body: document.querySelector('.notification p')
+        body: document.querySelector('.notification p'),
+        closeNotif: document.querySelector('.close-notif'),
     }
 
     let curFilePath;
@@ -56,12 +57,15 @@ window.addEventListener('DOMContentLoaded', () => {
         showNotification(type,content);
     })
 
+    notification.closeNotif.addEventListener('click', () => {
+        removeNotification();
+    })
 
     const showNotification = (type="success", content="") => {
         notification.notifContainer.classList.remove('display-none');
         notification.body.textContent = content;
         notification.notif.classList.add(type);
-        setTimeout(() => removeNotification(type), 900000000);
+        setTimeout(() => removeNotification(type), 10000);
     }
 
     const removeNotification = (type) => {

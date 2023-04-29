@@ -1,103 +1,64 @@
-
-#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "genCode.h"
+#include "semantic.c"
 
-ENTRE_CODE * tab[100];   
-
-extern int line;
-
-
-//------------------------------------------------------- Function to insert an identifier
-int insert_code(  char * code_op,int operande, char * nomFct)
+typedef struct
 {
-    int index = search_index_code();
-    ENTRE_CODE * p = (ENTRE_CODE *) malloc (sizeof (ENTRE_CODE));
-    p->operande=operande;
-    p->nomFct=nomFct;
-    p->code_op=code_op;
-    if (strcmp(code_op,"+")==0)
-        p->code_op="ADD";
-    if (strcmp(code_op,"-")==0)
-        p->code_op="SUB";
-    if (strcmp(code_op,"/")==0)
-       p->code_op="DIV";
-    
-    if (strcmp(code_op,"*")==0)
-       p->code_op="MUL";
-    if (strcmp(code_op,"<")==0)
-     p->code_op="INF";
-    if (strcmp(code_op,">")==0)
-        p->code_op="SUP";
-    if (strcmp(code_op,"<=")==0)
-     p->code_op="INFE";
-    if (strcmp(code_op,">=")==0)
-        p->code_op="SUPE";
-    if (strcmp(code_op,"==")==0)
-    p->code_op="EGAL";
-    if (strcmp(code_op,"!=")==0)
-       p->code_op="DIF";
-    if (strcmp(code_op,"=")==0)
-       p->code_op="STORE";
-    if (strcmp(code_op,"}")==0)
-    p->code_op="SORTIE";
-    if (strcmp(code_op,"while")==0)
-    p->code_op="WHILE";
-    
-   
+    char code_op[50];
+    int operand;
+    char functionName[50];
+} CODE_ENTRY;
+
+CODE_ENTRY codeTabInt[100];
+int nbCodes = 0;
 
 
-    if (tab[index] == NULL) {
-        tab[index] = p;
-        return 1;
-    }
-    
-  
-    return 0;
-}
 
-//------------------------------------------------------- Function to see all table
-int affiche()
 
+void addCode(char code_op[], int op, char fct[])
 {
-
-    ENTRE_CODE * p ;
-	int i;
-    for (i = 0; i< 100; i++){
-        if (tab[i] == NULL ){
-            return -1;
-        }
-        else
-        { 
-            p=tab[i];
-            if (p->operande == -1)
-            printf("  %s   \n", p->code_op);
-            else
-            printf(" %s : %d  \n", p->code_op,p->operande);
-        }
+    strcpy(codeTabInt[nbCodes].code_op, code_op);
+    codeTabInt[nbCodes].operand = op;
+    strcpy(codeTabInt[nbCodes].functionName, fct);
+    nbCodes++;
+}
+void printCodeTab()
+{
+    printf("%5s %10s %10s %10s\n", "Nb", "Op_Code", "Operand", "Function");
+    printf("---------------------------------------------\n");
+    for (int i = 0; i < nbCodes; i++)
+    {
+        printf("%5d %10s %10d %10s\n", i, codeTabInt[i].code_op, codeTabInt[i].operand, codeTabInt[i].functionName);
     }
-  
-    return 0;
+    printf("---------------------------------------------\n\n\n");
 }
-  
-//------------------------------------------------------- Function to  an identifier
 
-int search_index_code(){
-    int i;
-    for (i = 0; i< 100; i++){
-        if (tab[i] == NULL ){
-            return i;
-        }
+
+void addOperator(char operSymbol[])
+{
+    if (!strcmp(operSymbol, "*"))
+    {
+        addCode("MUL", -1, "");
     }
-    printf("table overflow");
-    return -1 ;
+    else if (!strcmp(operSymbol, "+"))
+    {
+        addCode("ADD", -1, "");
+    }
+    else if (!strcmp(operSymbol, "-"))
+    {
+        addCode("SUB", -1, "");
+    }
+    else if (!strcmp(operSymbol, "<"))
+    {
+        addCode("INF", -1, "");
+    }
+    else if (!strcmp(operSymbol, "=="))
+    {
+        addCode("EGAL", -1, "");
+    }
+    else if (!strcmp(operSymbol, "!="))
+    {
+        addCode("DIF", -1, "");
+    }
 }
-
-//------------------------------------------------------- Function to  an identifier
-
-void fin_while(){
-printf("end while");
-}
-

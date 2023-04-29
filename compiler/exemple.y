@@ -1,243 +1,330 @@
 %{
-	
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "genCode.c"
+extern int nbLigne;
 
-#include <stdio.h>	
- 			
-int yyerror(char const *msg);	
-int yylex(void);
-extern int line;
+int err= 0;
+// the variable nom will stock the name of an identifier
+char nom [256];
+int intValue;
+char operSymbol [10];
+int idx;
+int codeTabIndex;
+int beginOfWhile;
+int calledMethodIndex;
+int backToMainIndex;
+char calledMethodName [50];
+//------------- THIS BLOCK IS FOR METHODS HANDELING---------------------
+char methodName [50];
+char * mehtodArgs [50];
+int nbArgs=0;
+int nbCalledArgs=0;
+//----------------
+int yyerror(char const * msg);	
+int yylex();
 
 %}
-
-
-%token CLASS 
-%token PUBLIC
-%token STATIC
-%token VOID
-%token MAIN
-%token PSVM
-%token EXTENDS
-%token RETURN
-%token PRINT
-%token NEW
-%token BOOLEAN
-%token INT
-%token STRING
-%token IF
-%token ELSE
-%token WHILE
-%token LENGTH
-%token THIS
-%token POINT
-%token POINT_VIRGULE
-%token VIRGULE
-										
-%token AFFECTATION
-
-%token OPERATOR  
-
-%token ID 
-%token NUMBER 
-%token BOOL
-
-
-%token PARENTHESE_OUVRANTE
-%token PARENTHESE_FERMANTE
-%token BRACE_OUVRANTE
-%token BRACE_FERMANTE
-%token BRACKET_FERMANTE
-%token BRACKET_OUVRANTE
-
-%token NOT 
+%token  kw_class
+%token  kw_public 
+%token  kw_static 
+%token  kw_void
+%token  kw_main
+%token  kw_extends
+%token  kw_return 
+%token  kw_if
+%token  kw_else
+%token  kw_while
+%token  kw_print
+%token  kw_this
+%token  kw_new
+%token  kw_length
+%token  _type
+%token  kw_String
+%token  openParentheses
+%token  closeParentheses
+%token  openSquareBrackets
+%token  closeSquareBrackets
+%token  openBraces
+%token  closeBraces
+%token  operator
+%token  affectation
+%token  notOperator
+%token  dot
+%token  Semicolon
+%token  comma
+%token  doubleQuote
+%token  simpleQuote
+%token  booleanLiteral
+%token  integerLiteral
+%token  identifier
 
 
 %start program
-
 %%
                                                            
-program			:  MainClass ClassDeclarationS ;
+program	  : {{init();}} mainClass classDeclaration  
+                        {{  
+                           //printCodeTab();
+                            verifyCalledMethods();
+                            displayWarnings();
+                            printSymbolTable();
+                            printCodeTab();
+                           //printUsedMethods();
+                        }}
 
-    
+mainClass : kw_class identifier  openBraces kw_public kw_static kw_void kw_main openParentheses kw_String openSquareBrackets closeSquareBrackets
+            identifier closeParentheses openBraces {  addCode("ENTREE",-1,"main");  } 
+            varsDeclaration statement closeBraces closeBraces  
+            {
+              addCode("SORTIE",-1,"main");
+            }
+           |kw_class identifier  openBraces kw_public kw_static kw_void kw_main openParentheses kw_String openSquareBrackets closeSquareBrackets
+             error closeParentheses openBraces varsDeclaration statement closeBraces closeBraces {yyerror ("Main method args needed"); }
 
 
+classHead: kw_class identifier  {{
+                                  addClass(nom,nbLigne);
+                                  }}  parentClass
+classDeclaration:  classHead openBraces  varsDeclaration 
+                  methodDeclaration closeBraces classDeclaration
+                | error identifier parentClass openBraces varsDeclaration
+                  methodDeclaration closeBraces classDeclaration {yyerror ("'class' expected"); }
+                | kw_class error parentClass openBraces varsDeclaration
+                  methodDeclaration closeBraces classDeclaration {yyerror ("class name expected"); }
+                | kw_class identifier parentClass error varsDeclaration
+                  methodDeclaration closeBraces classDeclaration {yyerror ("'{' expected"); }
+                | kw_class identifier parentClass openBraces varsDeclaration
+                  methodDeclaration error classDeclaration {yyerror ("'}' expected"); }
+                |
 
-ClassDeclarationS       :ClassDeclaration ClassDeclarationS                      
-                        |epsilon;
+parentClass: kw_extends identifier
+	   | error identifier {yyerror ("'extends' expected"); }
+	   | kw_extends error {yyerror ("invalid Parent class name "); }
+	   |
 
+identifierOrNumber: identifier | integerLiteral
 
-ClassDeclaration	:CLASS ID EXTENDSID BRACE_OUVRANTE VarDeclarationS MethodDeclarationS BRACE_FERMANTE
-                        |error ID EXTENDSID BRACE_OUVRANTE VarDeclarationS MethodDeclarationS BRACE_FERMANTE          {yyerror ("erreur mot cle class errone "); }
-                        |CLASS error  EXTENDSID BRACE_OUVRANTE VarDeclarationS MethodDeclarationS BRACE_FERMANTE          {yyerror ("erreur identifier errone "); }
-                        |CLASS ID  EXTENDSID error VarDeclarationS MethodDeclarationS BRACE_FERMANTE              {yyerror ("erreur acolade ouvarnte  manquant "); }
-                        |CLASS ID  EXTENDSID BRACE_OUVRANTE VarDeclarationS MethodDeclarationS error          {yyerror (" erreur acolade fermante  manquant "); };
+varsDeclaration: typeDeclaration identifier Semicolon {{
   
-EXTENDSID		:EXTENDS ID
-                        |epsilon
-                        |error ID  {yyerror (" mot cle EXTENDS manquant ou bien errone "); }
-                        |CLASS error  {yyerror ("erreur identifier errone "); }; 
-
-
-VarDeclarationS		:VarDeclaration VarDeclarationS	
-                        |epsilon;
-
-MethodDeclarationS	:MethodDeclaration MethodDeclarationS	
-                        |epsilon;
-
-STATEMENTS		:STATEMENT STATEMENTS 
-                        |epsilon;
-
-VarDeclaration		:Type ID  POINT_VIRGULE;
-                        |Type error POINT_VIRGULE {yyerror ("erreur identifier errone "); } 
-                        |Type ID  error  {yyerror ("POINT_VIRGULE  manquant "); }; 
-
-ONEARGG                    :ONEARG ONEARGG
-                        |epsilon;
-
-ONEARG                     :VIRGULE Type ID
-                        |error Type ID                  {yyerror ("VIRGULE manquant "); }     
-                        |VIRGULE Type error                  {yyerror ("identifier errone "); }     ;
-
-ARGS                  :Type ID ONEARGG
-                        |epsilon;
-
-MethodDeclaration	:PUBLIC Type ID PARENTHESE_OUVRANTE ARGS PARENTHESE_FERMANTE BRACE_OUVRANTE VarDeclarationS STATEMENTS RETURN EXPRESSION POINT_VIRGULE BRACE_FERMANTE   
-                        |error Type ID PARENTHESE_OUVRANTE ARGS PARENTHESE_FERMANTE BRACE_OUVRANTE VarDeclarationS STATEMENTS RETURN EXPRESSION POINT_VIRGULE BRACE_FERMANTE    {yyerror ("mot clee class manquant ou errone "); }
-                        |PUBLIC Type error PARENTHESE_OUVRANTE ARGS PARENTHESE_FERMANTE BRACE_OUVRANTE VarDeclarationS STATEMENTS RETURN EXPRESSION POINT_VIRGULE BRACE_FERMANTE      {yyerror ("erreur identifier errone "); } 
-                        |PUBLIC Type ID error ARGS PARENTHESE_FERMANTE BRACE_OUVRANTE VarDeclarationS STATEMENTS RETURN EXPRESSION POINT_VIRGULE BRACE_FERMANTE      {yyerror ("erreur parenthese ouvarnte  manquante "); } 
-                        |PUBLIC Type ID PARENTHESE_OUVRANTE ARGS error BRACE_OUVRANTE VarDeclarationS STATEMENTS RETURN EXPRESSION POINT_VIRGULE BRACE_FERMANTE     {yyerror ("erreur parenthese fermante  manquante "); }
-                        |PUBLIC Type ID PARENTHESE_OUVRANTE ARGS PARENTHESE_FERMANTE  error VarDeclarationS STATEMENTS RETURN EXPRESSION POINT_VIRGULE BRACE_FERMANTE     {yyerror ("acolade ouvrant  manquant "); }
-                        |PUBLIC Type ID PARENTHESE_OUVRANTE ARGS PARENTHESE_FERMANTE  BRACE_OUVRANTE VarDeclarationS STATEMENTS error EXPRESSION POINT_VIRGULE BRACE_FERMANTE     {yyerror ("mot clee return manquant ou errone "); }
-                        |PUBLIC Type ID PARENTHESE_OUVRANTE ARGS PARENTHESE_FERMANTE  BRACE_OUVRANTE VarDeclarationS STATEMENTS RETURN EXPRESSION error BRACE_FERMANTE     {yyerror ("POINT_VIRGULE manquant  "); }
-                        |PUBLIC Type ID PARENTHESE_OUVRANTE ARGS PARENTHESE_FERMANTE  BRACE_OUVRANTE VarDeclarationS STATEMENTS RETURN EXPRESSION POINT_VIRGULE error     {yyerror ("acolade fermant  manquante "); };
-                        
-
-
-
-Type			:INT BRACKET_OUVRANTE BRACKET_FERMANTE	
-			|INT error BRACKET_FERMANTE                 {yyerror ("erreur bracket ouvrante manquante "); } 
-			|INT BRACKET_OUVRANTE error                 {yyerror ("erreur bracket fermante manquante "); } 
-			|BOOLEAN		
-			|INT
-			|ID
-
-               
-MainClass		: CLASS ID BRACE_OUVRANTE PSVM ARG BRACE_OUVRANTE STATEMENT BRACE_FERMANTE BRACE_FERMANTE
-                        |error ID BRACE_OUVRANTE PSVM ARG BRACE_OUVRANTE STATEMENT BRACE_FERMANTE BRACE_FERMANTE          {yyerror ("mot cle CLASS errone ou bien manquant on ligne "); }
-			|CLASS error BRACE_OUVRANTE PSVM ARG BRACE_OUVRANTE STATEMENT BRACE_FERMANTE BRACE_FERMANTE       {yyerror ("erreur identifier errone "); } 
-			|CLASS ID error PSVM ARG BRACE_OUVRANTE STATEMENT BRACE_FERMANTE BRACE_FERMANTE         {yyerror ("acolade ouvrante manquante "); } 
-                        |CLASS ID BRACE_OUVRANTE PSVM ARG error STATEMENT BRACE_FERMANTE BRACE_FERMANTE          {yyerror ("acolade ouvrante manquante "); }
-                        |CLASS ID BRACE_OUVRANTE PSVM ARG BRACE_OUVRANTE STATEMENT error BRACE_FERMANTE          {yyerror ("acolade fermante  manquante dans la ligne:"); }
-                        |CLASS ID BRACE_OUVRANTE PSVM ARG BRACE_OUVRANTE STATEMENT BRACE_FERMANTE error          {yyerror ("acolade fermante  manquante "); };
-
-
-ARG			: PARENTHESE_OUVRANTE STRING BRACKET_OUVRANTE BRACKET_FERMANTE ID PARENTHESE_FERMANTE
-                        |error STRING BRACKET_OUVRANTE BRACKET_FERMANTE ID PARENTHESE_FERMANTE          {yyerror ("parenthese ouvrante manquante "); }
-                        |PARENTHESE_OUVRANTE error BRACKET_OUVRANTE BRACKET_FERMANTE ID PARENTHESE_FERMANTE          {yyerror ("erreur mot cle String errone  "); }
-                        |PARENTHESE_OUVRANTE STRING error BRACKET_FERMANTE ID PARENTHESE_FERMANTE          {yyerror ("bracket ouvrante manquante "); }
-                        |PARENTHESE_OUVRANTE STRING BRACKET_OUVRANTE error ID PARENTHESE_FERMANTE          {yyerror ("bracket fermante manquante "); }
-                        |PARENTHESE_OUVRANTE STRING BRACKET_OUVRANTE BRACKET_FERMANTE error PARENTHESE_FERMANTE          {yyerror ("erreur identifier errone "); }
-                        |PARENTHESE_OUVRANTE STRING BRACKET_OUVRANTE BRACKET_FERMANTE ID error          {yyerror ("parenthese  fermant manquant "); };
+                  addVariable(nom,nbLigne,0);
+                  }} varsDeclaration 
+          | typeDeclaration openSquareBrackets closeSquareBrackets identifier Semicolon varsDeclaration
+	       | typeDeclaration identifier affectation identifierOrNumber Semicolon varsDeclaration
+	       | error identifier Semicolon varsDeclaration {yyerror ("invalid type declaration "); }
+	       | typeDeclaration error Semicolon varsDeclaration {yyerror ("invalid identifier declaration "); }
+	       | typeDeclaration identifier error varsDeclaration {yyerror (" ';' expected "); }
+	       | error identifier affectation identifierOrNumber Semicolon varsDeclaration {yyerror ("invalid type declaration "); }
+	       | typeDeclaration error affectation identifierOrNumber Semicolon varsDeclaration {yyerror ("invalid identifier declaration "); }
+	       | typeDeclaration identifier error identifierOrNumber Semicolon varsDeclaration{yyerror ("'=' expected "); }
+	       | typeDeclaration identifier affectation error Semicolon varsDeclaration {yyerror ("invalid identifier affectation "); }
+	       | typeDeclaration identifier affectation identifierOrNumber error varsDeclaration {yyerror ("';' expected "); }
+	       |
+typeDeclaration : _type | kw_String
+methodHead:  
+methodDeclaration:  kw_public typeDeclaration identifier 
+                    {{
+                        codeTabInt[calledMethodIndex].operand = nbCodes;
+                        strcpy(methodName,nom);
+                        addCode("ENTREE",-1,methodName);
+                    }} 
+                    openParentheses  functionVars closeParentheses  openBraces varsDeclaration   statement kw_return  expression Semicolon closeBraces
+                     {
+                      addCode("SORTIE",-1,methodName);
+                      addCode("RETOUR",backToMainIndex,"");
+                     } methodDeclaration
+                  
+                  |
+                   kw_public error identifier  openParentheses   
+                   functionVars closeParentheses  openBraces varsDeclaration   statement kw_return  expression Semicolon closeBraces methodDeclaration
+                    {yyerror ("Missing return type"); }
+                  | 
 
 
 
 
-STATEMENT		:STATEMENTS              
-                        |IF PARENTHESE_OUVRANTE EXPRESSION PARENTHESE_FERMANTE  BRACE_OUVRANTE STATEMENT BRACE_FERMANTE  ELSE BRACE_OUVRANTE STATEMENT BRACE_FERMANTE
-                        |IF PARENTHESE_OUVRANTE EXPRESSION PARENTHESE_FERMANTE  BRACE_OUVRANTE STATEMENT BRACE_FERMANTE  ELSE  STATEMENT 
-                        |IF PARENTHESE_OUVRANTE EXPRESSION PARENTHESE_FERMANTE   STATEMENT ELSE BRACE_OUVRANTE STATEMENT BRACE_FERMANTE
-                        |IF PARENTHESE_OUVRANTE EXPRESSION PARENTHESE_FERMANTE  STATEMENT  ELSE  STATEMENT
-                        |error PARENTHESE_OUVRANTE EXPRESSION PARENTHESE_FERMANTE BRACE_OUVRANTE STATEMENT BRACE_FERMANTE ELSE BRACE_OUVRANTE STATEMENT BRACE_FERMANTE            {yyerror ("mot cle IF errone ou bien manquant on ligne "); }
-                        |IF error EXPRESSION PARENTHESE_FERMANTE BRACE_OUVRANTE STATEMENT BRACE_FERMANTE ELSE BRACE_OUVRANTE STATEMENT BRACE_FERMANTE                       {yyerror ("parenthese  ouvrante manquant "); }
-                        |IF PARENTHESE_OUVRANTE EXPRESSION error BRACE_OUVRANTE STATEMENT BRACE_FERMANTE  ELSE BRACE_OUVRANTE STATEMENT BRACE_FERMANTE                       {yyerror ("parenthese  fermante manquant "); }
-                        |IF PARENTHESE_OUVRANTE EXPRESSION PARENTHESE_FERMANTE BRACE_OUVRANTE STATEMENT BRACE_FERMANTE error BRACE_OUVRANTE STATEMENT BRACE_FERMANTE                {yyerror ("mot cle ELSE errone ou bien manquant on ligne "); }
 
-                        |WHILE PARENTHESE_OUVRANTE EXPRESSION PARENTHESE_FERMANTE BRACE_OUVRANTE STATEMENT BRACE_FERMANTE 
-                        |WHILE PARENTHESE_OUVRANTE EXPRESSION PARENTHESE_FERMANTE  STATEMENT 
-                        |error PARENTHESE_OUVRANTE EXPRESSION PARENTHESE_FERMANTE BRACE_OUVRANTE STATEMENT BRACE_FERMANTE                          {yyerror ("mot cle WHILE errone ou bien manquant on ligne "); }
-                        |WHILE error EXPRESSION PARENTHESE_FERMANTE BRACE_OUVRANTE STATEMENT BRACE_FERMANTE                                  {yyerror ("parenthese  ouvrante manquant "); }
-                        |WHILE PARENTHESE_OUVRANTE EXPRESSION error BRACE_OUVRANTE STATEMENT BRACE_FERMANTE                                  {yyerror ("parenthese  fermante manquant "); }
-
-                        |PRINT PARENTHESE_OUVRANTE EXPRESSION PARENTHESE_FERMANTE  POINT_VIRGULE
-                        |error PARENTHESE_OUVRANTE EXPRESSION PARENTHESE_FERMANTE  POINT_VIRGULE             {yyerror ("system.out.println errone ou bien manquant on ligne "); }
-                        |PRINT error EXPRESSION PARENTHESE_FERMANTE  POINT_VIRGULE                    {yyerror ("parenthese  ouvrante manquant "); }
-                        |PRINT PARENTHESE_OUVRANTE EXPRESSION error  POINT_VIRGULE                    {yyerror ("parenthese  fermante manquant "); }
-                        |PRINT PARENTHESE_OUVRANTE EXPRESSION PARENTHESE_FERMANTE  error                     {yyerror ("POINT_VIRGULE  manquant "); }
-
-                        |ID AFFECTATION EXPRESSION POINT_VIRGULE
-                        |error AFFECTATION EXPRESSION POINT_VIRGULE                                     {yyerror ("erreur identifier errone "); };
-                        |ID error EXPRESSION POINT_VIRGULE                                              {yyerror ("AFFECTATION errone "); };
-                        |ID AFFECTATION EXPRESSION error                                                {yyerror ("POINT_VIRGULE  manquant "); }
-
-                        |ID BRACKET_OUVRANTE EXPRESSION BRACKET_FERMANTE AFFECTATION EXPRESSION POINT_VIRGULE
-                        |error BRACKET_OUVRANTE EXPRESSION BRACKET_FERMANTE AFFECTATION EXPRESSION POINT_VIRGULE         {yyerror ("erreur identifier errone "); }
-                        |ID error EXPRESSION BRACKET_FERMANTE AFFECTATION EXPRESSION POINT_VIRGULE                   {yyerror ("erreur bracket ouvrante manquante "); }
-                        |ID BRACKET_OUVRANTE EXPRESSION error AFFECTATION EXPRESSION POINT_VIRGULE                    {yyerror ("erreur bracket fermante manquante "); }
-                        |ID BRACKET_OUVRANTE EXPRESSION BRACKET_FERMANTE error EXPRESSION POINT_VIRGULE                  {yyerror ("AFFECTATION errone "); }
-                        |ID BRACKET_OUVRANTE EXPRESSION BRACKET_FERMANTE AFFECTATION EXPRESSION error                     {yyerror ("POINT_VIRGULE  manquant "); };
+                   
+functionVars: functionVariables |
+functionVariables :  typeDeclaration identifier 
+                    {{
+                    
+                          char aux [50];
+                          strcpy(aux,nom);
+                          mehtodArgs[nbArgs]=(char*)malloc(50*sizeof(char));
+                          memcpy(mehtodArgs[nbArgs],aux,strlen(aux)+1);
+                          nbArgs ++;
+                          addMethod(methodName,mehtodArgs,nbArgs,nbLigne);
+                          nbArgs=0;
+                    
+                    }}
+                    | typeDeclaration identifier 
+                    {{
+                          char aux [50];
+                          strcpy(aux,nom);
+                          mehtodArgs[nbArgs]=(char*)malloc(50*sizeof(char));
+                          memcpy(mehtodArgs[nbArgs],aux,strlen(aux)+1);
+                          nbArgs ++;
+                    }}
+                      comma functionVariables 
 
 
-EXPRESSION		:EXPRESSION OPERATOR EXPRESSION
-                        |EXPRESSION error EXPRESSION                                                              {yyerror ("operateur manquant "); }
+statement:  
+            openBraces statement closeBraces statement|
+            openBraces varsDeclaration closeBraces statement|
+            kw_if openParentheses expression  closeParentheses
+            {
+              addOperator(operSymbol);
+              addCode("SIFAUX",9999,"");
+              codeTabIndex=nbCodes-1;
+            }
+              statement kw_else
+              {
+              addCode("SAUT",3333,"");
+              codeTabInt[codeTabIndex].operand=nbCodes;
+              codeTabIndex=nbCodes-1;
+              }
+               openBraces statement closeBraces {
+              codeTabInt[codeTabIndex].operand=nbCodes;
+               }   statement|
+            kw_while openParentheses
+            {
+              beginOfWhile=nbCodes;
+            }
+             expression closeParentheses
+            {
+              addOperator(operSymbol);
+              addCode("TANTQUEFAUX",2000,"");
+              codeTabIndex=nbCodes-1;
+            }
+            openBraces statement closeBraces 
+            {
+              addCode("TANTQUE",2000,"");
+              codeTabInt[codeTabIndex].operand=nbCodes;
+              codeTabInt[nbCodes-1].operand=beginOfWhile;
+            }
+            statement |
+            kw_print openParentheses  expression  closeParentheses Semicolon statement|
+            kw_print openParentheses expression error Semicolon statement 
+            {yyerror ("Missing close parentheses"); }
+            |
+          
+            identifier {
+              idx= findIdentifier(nom);
+            }  affectation {{
+            // printf("Hello world\n");
+              isIdDeclared(nom,nbLigne);
+              markAsInitialisated(nom);
+            }} expression Semicolon  
+            { 
+              if (!strcmp(operSymbol,"*")){
+                addCode("MUL",-1,"");                
+              }
+              else if (!strcmp(operSymbol,"+")){
+                addCode("ADD",-1,""); 
+              }
+              else if (!strcmp(operSymbol,"-")){
+                addCode("SUB",-1,""); 
 
-                        |EXPRESSION BRACKET_OUVRANTE EXPRESSION BRACKET_FERMANTE
-                        |EXPRESSION error EXPRESSION BRACKET_FERMANTE                                               {yyerror ("erreur bracket ouvrante manquante "); }
-                        |EXPRESSION BRACKET_OUVRANTE EXPRESSION error                                               {yyerror ("erreur bracket fermante manquante "); }
+              }
+              addCode("STORE ",idx,"");
+            } 
+            statement|
+            identifier  error  expression Semicolon statement  {yyerror ("Missing affectation"); }|
+            identifier openSquareBrackets expression closeSquareBrackets affectation expression Semicolon|
+            error openSquareBrackets expression closeSquareBrackets affectation expression Semicolon {yyerror ("invalid expression"); } |
+            identifier error expression closeSquareBrackets affectation expression Semicolon {yyerror ("'[' expected"); } |
+            identifier openSquareBrackets expression error affectation expression Semicolon {yyerror ("']' expected"); } |
+            identifier openSquareBrackets expression closeSquareBrackets error expression Semicolon {yyerror ("'=' expected"); } |
+            identifier openSquareBrackets expression closeSquareBrackets affectation expression error {yyerror ("';' expected"); } |
 
-                        |EXPRESSION POINT LENGTH 
-                        |EXPRESSION error LENGTH                                                                {yyerror ("POINT manquant "); }
-                        |EXPRESSION POINT error                                                                 {yyerror ("mot cle LENGTH manquant "); }
+expression : identifier  {{
+            // printf("Hello world\n");
+              isIdDeclared(nom,nbLigne);
+              markAsUsed(nom);
+              idx =  findIdentifier(nom);
+              addCode("LDV",idx,"");
+            }}  operator identifier {{
+             //printf("Hello world\n");
+              isIdDeclared(nom,nbLigne);
+              markAsUsed(nom);
+              idx =  findIdentifier(nom);
+              addCode("LDV",idx,"");
+            }}  
+            |
+             expression openSquareBrackets expression closeSquareBrackets 
+            |
+             identifier  {{
+             //printf("Hello world\n");
+              isIdDeclared(nom,nbLigne);
+              markAsUsed(nom);
+              idx =  findIdentifier(nom);
+              addCode("LDV",idx,"");
+            }}  operator integerLiteral {
+              addCode("LDC",intValue,"");
+            }
+            |
+             integerLiteral {
+                addCode("LDC",intValue,"");
+             } operator identifier  {{
+             //printf("Hello world\n");
+              isIdDeclared(nom,nbLigne);
+               idx =  findIdentifier(nom);
+              addCode("LDV",idx,"");
+            }} 
+            |
+             expression error expression closeSquareBrackets {yyerror ("'[' expected"); } |
+             expression openSquareBrackets expression error {yyerror ("']' expected"); } |
+             expression dot kw_length |
+             expression dot identifier {{ 
+               saveMethod(nom,nbLigne);
+              calledMethodIndex=nbCodes;
+              strcpy(calledMethodName,nom);
+              addCode("APPEL",11111,"");
+              backToMainIndex=nbCodes;
+             }}openParentheses expression {{nbCalledArgs++;}} anotherExpression closeParentheses {{
+                                          //printf("Number of args: %d\n",nbCalledArgs);
+                                          usedMethods[nbUsedMethods-1].nbArgs=nbCalledArgs;
+                                          nbCalledArgs=0;
+                                          }} |
+             integerLiteral 
+              {
+                idx= findIdentifier(nom);
+                addCode("LDC",intValue,"");
+              }             
+            |
+             integerLiteral error {yyerror ("';' expected"); } |
+             booleanLiteral  |
+             booleanLiteral error {yyerror ("';' expected"); } |
+             identifier 
+              {
+                idx= findIdentifier(nom);
+                addCode("LDV",idx,"");
+              } 
+            |
+             kw_this |
+             kw_new identifier openParentheses closeParentheses |
+             notOperator expression |
+             openParentheses expression closeParentheses  |
 
-                        |EXPRESSION POINT ID PARENTHESE_OUVRANTE EXPAFTEREXP PARENTHESE_FERMANTE
-                        |EXPRESSION error ID PARENTHESE_OUVRANTE EXPAFTEREXP PARENTHESE_FERMANTE                             {yyerror ("POINT manquant "); }
-                        |EXPRESSION POINT error PARENTHESE_OUVRANTE EXPAFTEREXP PARENTHESE_FERMANTE                          {yyerror ("erreur identifier errone "); }
-                        |EXPRESSION POINT ID error EXPAFTEREXP PARENTHESE_FERMANTE                                    {yyerror ("erreur parenthese ouvarnte  manquante "); }
-                        |EXPRESSION POINT ID PARENTHESE_OUVRANTE EXPAFTEREXP error                                    {yyerror ("erreur parenthese fermante  manquante "); }
+anotherExpression: comma expression {{nbCalledArgs++;}} anotherExpression |
+		  
 
-
-                        |NUMBER
-                        |BOOL
-                        |ID
-                        |THIS
-                        |error                                                                                  {yyerror ("erreur "); }
-                        
-                        |NEW INT BRACE_OUVRANTE EXPRESSION BRACE_FERMANTE
-                        |error INT BRACE_OUVRANTE EXPRESSION BRACE_FERMANTE                                         {yyerror ("mot cle NEW manquant ou bien errone "); }
-                        |NEW error BRACE_OUVRANTE EXPRESSION BRACE_FERMANTE                                         {yyerror ("mot cle int manquant ou bien errone "); }
-                        |NEW INT error EXPRESSION BRACE_FERMANTE                                                  {yyerror ("erreur acolade ouvarnte  manquante "); }
-                        |NEW INT BRACE_OUVRANTE EXPRESSION error                                                  {yyerror ("erreur acolade fermante  manquante "); }
-
-                        |NEW ID PARENTHESE_OUVRANTE PARENTHESE_FERMANTE
-                        |error ID PARENTHESE_OUVRANTE PARENTHESE_FERMANTE                                                     {yyerror ("mot cle NEW manquant ou bien errone "); }
-                        |NEW error PARENTHESE_OUVRANTE PARENTHESE_FERMANTE                                                    {yyerror ("erreur identifier errone "); }
-                        |NEW ID error PARENTHESE_FERMANTE                                                              {yyerror ("erreur parenthese ouvarnte  manquante "); } 
-                        |NEW ID PARENTHESE_OUVRANTE error                                                              {yyerror ("erreur parenthese fermante  manquante "); } 
-
-                        |NOT EXPRESSION
-                        |error EXPRESSION                                                                       {yyerror ("erreur "); } 
-
-                        |PARENTHESE_OUVRANTE EXPRESSION PARENTHESE_FERMANTE
-                        |error EXPRESSION PARENTHESE_FERMANTE                                                          {yyerror ("erreur parenthese ouvarnte  manquante "); }  
-                        |PARENTHESE_OUVRANTE EXPRESSION error                                                          {yyerror ("erreur parenthese fermante  manquante "); } ;
-
-
-EXPAFTEREXP		:EXPRESSION EXPRESSIONS
-			|epsilon;
-
-EXPRESSIONS		:VIRGULE EXPRESSION EXPRESSIONS
-                        |error EXPRESSION EXPRESSIONS                                                                      {yyerror ("erreur VIRGULE manquante "); }
-			|epsilon;
-
-
-epsilon			:
-
-
-
-
-%% 
+%%
 
 int yyerror(char const *msg) {
-	fprintf(stderr, "%s a la ligne %d\n", msg,line);
-	return 0;	
+	err = 1;
+	if(msg == "syntax error")
+	  {
+     fprintf(stderr, "\nerreur ligne %d :", nbLigne );
+    }
+  else
+	{
+  fprintf(stderr, msg);
+  exit(0);
+  }
+	return 0;
 }
 
 extern FILE *yyin;
@@ -245,5 +332,14 @@ extern FILE *yyin;
 int main()
 {
  yyparse();
- 
+ return 1;
 }
+int yywrap()
+{
+//     if(err==0)
+  //   printf("Code compiled successfully\n");
+
+	return(1);
+}
+  
+     

@@ -1,182 +1,305 @@
-
-#include <ctype.h>
+#include "semantic.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "semantic.h"
+scope_tree scope[100];
+int maxScope = 0;
+int currentScope = 0;
+node symbolTable[500];
+int nbIdentifiers = 0;
 
-Node * head[100];   
-
-extern int line;
-
-
-//------------------------------------------------------- Function to insert an identifier
-int insert(char * id, char * scope, char * type,   int test_init , int test_use, int nbr_args)
+typedef struct
 {
-    int index = search_index();
-    Node* p = (Node *) malloc (sizeof (Node));
-    p->identifier = id;
-    p->scope = scope;
-    p->type = type;
-    p->test_init = test_init;
-    p->test_use = test_use;
-    p->nbr_args = nbr_args;
-      
-    if (head[index] == NULL) {
-        head[index] = p;
-        print(p);
-        return 1;
+    char methodName[50];
+    int lineNumber;
+    int nbArgs;
+} UsedMethod;
+
+UsedMethod usedMethods[100];
+int nbUsedMethods = 0;
+void sayHello(char *line)
+{
+    printf("\nHello %s\n", line);
+}
+void printSymbolTable()
+{
+    printf("\n\n\n------------------------------------------------------------\n");
+    printf("                      Symbol table                          \n");
+    printf("------------------------------------------------------------\n");
+    printf("%5s %10s %10s %10s %10s\n", "Index", "Name", "Scope", "Type", "Is init");
+
+    for (int i = 0; i < nbIdentifiers; i++)
+    {
+        printf("%5d %10s %10d %10s %10d\n", i, symbolTable[i].name,
+               symbolTable[i].scope, TYPES[symbolTable[i].type], symbolTable[i].isInit);
     }
-  
+    printf("------------------------------------------------------------\n\n\n");
+}
+void init()
+{
+    scope[0].nbFils = 0;
+    scope[0].parent = -1;
+}
+void enterScope()
+{
+    maxScope++;
+    scope[currentScope].nbFils = maxScope;
+    scope[maxScope].parent = currentScope;
+    currentScope = maxScope;
+    //  printf("Current scope = %d\n", currentScope);
+}
+
+void exitScope()
+{
+    currentScope = scope[currentScope].parent;
+    // printf("Current scope = %d\n", currentScope);
+}
+
+int searchIdInCurrentScope(char name[], int isClass)
+{
+    for (int i = 0; i < nbIdentifiers; i++)
+    {
+        if (!isClass && (symbolTable[i].scope == currentScope) && (!strcmp(symbolTable[i].name, name)))
+        {
+            // printf("----------------------error-------------------\n");
+            // printSymbolTable();
+            // printf("----------------------error-------------------\n");
+            return 1;
+        }
+        if (isClass && (symbolTable[i].type == CLASS) && (!strcmp(symbolTable[i].name, name)))
+        {
+            // printf("----------------------error-------------------\n");
+            // printSymbolTable();
+            // printf("----------------------error-------------------\n");
+            return 1;
+        }
+    }
+    return 0;
+}
+void addVariable(char varName[], int line, int isMethodArg)
+{
+    if (searchIdInCurrentScope(varName, 0))
+    {
+        printf("Error on line %d: Identifier '%s' already defined in this scope\n", line, varName);
+        exit(0);
+    }
+
+    strcpy(symbolTable[nbIdentifiers].name, varName);
+    symbolTable[nbIdentifiers].isInit = 0;
+    symbolTable[nbIdentifiers].isUsed = 0;
+    symbolTable[nbIdentifiers].nbArgs = 0;
+    symbolTable[nbIdentifiers].line = line;
+    symbolTable[nbIdentifiers].type = VARIABLE;
+    if (!isMethodArg)
+    {
+        symbolTable[nbIdentifiers].scope = currentScope;
+        symbolTable[nbIdentifiers].isMethodArg = 0;
+    }
+
+    else
+    {
+        symbolTable[nbIdentifiers].scope = maxScope + 1;
+        symbolTable[nbIdentifiers].isMethodArg = 1;
+    }
+
+    // printf("Nom in here  is:%s\n", symbolTable[nbIdentifiers].name);
+
+    nbIdentifiers++;
+    // printf("--------------------------------------------\n");
+    // printSymbolTable();
+    // printf("--------------------------------------------\n");
+}
+
+void addClass(char varName[], int line)
+{
+    if (searchIdInCurrentScope(varName, 1))
+    {
+        printf("Error on line %d: class '%s' already defined\n", line, varName);
+        exit(0);
+    }
+
+    strcpy(symbolTable[nbIdentifiers].name, varName);
+    symbolTable[nbIdentifiers].isInit = 0;
+    symbolTable[nbIdentifiers].isUsed = 0;
+    symbolTable[nbIdentifiers].nbArgs = 0;
+    symbolTable[nbIdentifiers].type = CLASS;
+    symbolTable[nbIdentifiers].scope = currentScope;
+    nbIdentifiers++;
+}
+void addMethod(char methodName[], char *args[], int nbArgs, int nbLine)
+{
+    strcpy(symbolTable[nbIdentifiers].name, methodName);
+    symbolTable[nbIdentifiers].isInit = 0;
+    symbolTable[nbIdentifiers].isUsed = 0;
+    symbolTable[nbIdentifiers].nbArgs = nbArgs;
+    symbolTable[nbIdentifiers].type = METHOD;
+    symbolTable[nbIdentifiers].scope = currentScope;
+    nbIdentifiers++;
+    for (int i = 0; i < nbArgs; i++)
+    {
+        addVariable(args[i], nbLine, 1);
+    }
+}
+
+void saveMethod(char methodName[], int nbLine)
+{
+    usedMethods[nbUsedMethods].lineNumber = nbLine;
+    strcpy(usedMethods[nbUsedMethods].methodName, methodName);
+    nbUsedMethods++;
+}
+
+void printUsedMethods()
+{
+    for (int i = 0; i < nbUsedMethods; i++)
+    {
+        printf("Method name: %s\n", usedMethods[i].methodName);
+        printf("line: %d\n", usedMethods[i].lineNumber);
+        printf("nbArgs: %d\n", usedMethods[i].nbArgs);
+    }
+}
+
+int verifyOneMethod(char methodName[], int nbArgs, int line)
+{
+
+    for (int i = 0; i < nbIdentifiers; i++)
+    {
+
+        if (symbolTable[i].type == METHOD)
+        {
+            if ((!strcmp(symbolTable[i].name, methodName)))
+            {
+                if (symbolTable[i].nbArgs != nbArgs)
+                {
+                    printf("Line %d: method '%s' defined with %d arguments but called with %d arguments\n",
+                           line, methodName, symbolTable[i].nbArgs, nbArgs);
+                    exit(0);
+                }
+                return 1;
+            }
+        }
+    }
+    printf("Line %d: method '%s' called but not declared\n", line, methodName);
+    exit(0);
     return 0;
 }
 
-  
-//------------------------------------------------------- Function to modify an identifier
-int  modify(char * id, char * scope, char * type,   int test_init ,int test_use, int nbr_args )
+int verifyCalledMethods()
 {
-    Node* start = find(id);
-  
-    if (start == NULL)
-        return -1;
+    for (int j = 0; j < nbUsedMethods; j++)
+    {
 
-            start->scope = scope;
-            start->type = type;
-            start->test_init = test_init;
-            start->test_use = test_use;
-            start->nbr_args = nbr_args;
-            return 1;   
+        verifyOneMethod(usedMethods[j].methodName, usedMethods[j].nbArgs, usedMethods[j].lineNumber);
+    }
 }
-  
-//------------------------------------------------------- Function to find an identifier
-Node *  find(char * id)
+
+// this function gets to params that represents two scopes,
+// if the second scope is a parent of the fisrt scope => return 1
+// else => return 0
+int isItMyParentScope(int childScope, int parentScope)
 {
-    int i;
-    for (i = 0; i< 100; i++){
-        Node* start = head[i];
-        if (start != NULL && strcmp(start->identifier,id) == 0 ){
-            return start;
+    if (childScope == parentScope)
+    {
+        return 1;
+    }
+    while (childScope != 0)
+    {
+        if (scope[childScope].parent == parentScope)
+        {
+            return 1;
+        }
+        childScope = scope[childScope].parent;
+    }
+}
+
+int isIdDeclared(char varName[], int line)
+{
+    for (int i = 0; i < nbIdentifiers; i++)
+    {
+        if ((isItMyParentScope(currentScope, symbolTable[i].scope)) && (!strcmp(symbolTable[i].name, varName)))
+        {
+            return 1;
         }
     }
-    return NULL; // not found
-    
+    printf("Line %d: Identifier %s used but not declared\n", line, varName);
+    exit(0);
+    return 0;
 }
 
-int search_index(){
-    int i;
-    for (i = 0; i< 100; i++){
-        if (head[i] == NULL ){
+int markVarInitialised(char varName[], int currScope)
+{
+
+    for (int i = 0; i < nbIdentifiers; i++)
+    {
+        if ((strcmp(symbolTable[i].name, varName) == 0) && (symbolTable[i].scope == currScope))
+        {
+            symbolTable[i].isInit = 1;
+            return 1;
+        }
+    }
+    return 0;
+}
+int markAsInitialisated(char varName[])
+{
+    int currScope = currentScope;
+    while (!markVarInitialised(varName, currScope) && currScope != 0)
+    {
+        currScope = scope[currentScope].parent;
+    }
+    // printf("Error occured! variable does not exist");
+    // exit(0);
+}
+int markVarUsed(char varName[], int currScope)
+{
+    for (int i = 0; i < nbIdentifiers; i++)
+    {
+        if ((strcmp(symbolTable[i].name, varName) == 0) && (symbolTable[i].scope == currScope))
+        {
+            symbolTable[i].isUsed = 1;
+            return 1;
+        }
+    }
+    return 0;
+}
+void markAsUsed(char varName[])
+{
+    int currScope = currentScope;
+    while (!markVarUsed(varName, currScope) && currScope != 0)
+    {
+        currScope = scope[currentScope].parent;
+    }
+}
+int displayWarnings()
+{
+    for (int i = 0; i < nbIdentifiers; i++)
+    {
+        if ((symbolTable[i].type == VARIABLE) && (symbolTable[i].isInit == 0) && (symbolTable[i].isMethodArg == 0))
+        {
+            printf("Warning line %d: variable %s declared but not initialisated\n",
+                   symbolTable[i].line, symbolTable[i].name);
+        }
+        else if ((symbolTable[i].type == VARIABLE) && (symbolTable[i].isUsed == 0))
+        {
+            printf("Warning line %d: variable %s not used\n",
+                   symbolTable[i].line, symbolTable[i].name);
+        }
+    }
+}
+
+/*-----------------
+the following functions were created for code generation purposes
+--------------------*/
+
+// returns the index of an identifier
+int findIdentifier(char idName[])
+{
+    for (int i = 0; i < nbIdentifiers; i++)
+    {
+        if ((strcmp(symbolTable[i].name, idName) == 0) && (isItMyParentScope(currentScope, symbolTable[i].scope)))
+        {
             return i;
         }
     }
-    printf("table overflow");
-    return -1 ;
-}
-  
-
-//------------------------------------------------------- Verifier la redefinition des variables deja declarees 
-
-void  insert_declaration(char * id, char * scope, char * type,   int test_init , int test_use ,int nbr_args){
-    Node * x = find(id);
-    if (x != NULL && strcmp(x->scope,"args") != 0){
-    	printf("ERROR: Variable  %s  deja declaree a la ligne # %d . \n", x->identifier,line);
-	}
-    else
-        insert(id, scope, type, test_init , test_use, nbr_args);
-
-}
-
-//------------------------------------------------------- Verifier qu'une variable declaree est bien utilisee => parcours table
-
-void  verif_var_dec_bien_init_use(){
-
-	int i;
-    for ( i = 0; i < MAX; i++){
-    	Node * current = head[i] ; 
-    	if (current != NULL && strcmp(current->type,"methode") != 0 && strcmp(current->scope,"args") != 0 ){ 				// case non vide
-			if(current->test_init == 0 ){ 	// car non initialise
-				printf("WARNING:  La Variable  %s  declaree mais non initialisee  la ligne # %d .  \n", current->identifier,line);
-			}
-			 
-			else if(current->test_use == 0){ // car non utilise
-			printf("WARNING:  La Variable  %s  declaree mais non initialisee  la ligne # %d .  \nn", current->identifier,line);
-			}
-		}
-	}  
-}
-//------------------------------------------------------- Function to use a variable
-
-void use_var(char * id)
-{
-
-    Node* x=find(id);
-    if (x!=NULL )
-     if ( x->test_init!=0)
-           {
-               modify(x->identifier , x->scope, x->type, x->test_init ,1, 0);
-                }
-        else 
-            {
-            printf("\n variable utilise mais pas initialiser . \n");
-
-        }
-    else
-        {
-        printf("\nvariable non decalree .\n");
-       }
-}
-
-//------------------------------------------------------- search index element
-
-int search_index_element_code(char * id){
-    Node* x=find(id);
-    int i;
-    for (i = 0; i< 100; i++){
-        if (head[i] == x ){
-            return i;
-        }
-    }
-    printf("element not found");
-    return -1 ;
-}
-//------------------------------------------------------- Function to initialize var
-
-
-void  init_var(char * id)
-{
-
-    Node* x=find(id);
-    if (x!=NULL )
-        { 
-        modify(x->identifier , x->scope, x->type, 1 ,x->test_use, 0);
-        }
-    else
-        {
-        printf("\nvariable non decalree .\n");
-       }
-       return x->identifier;
-
-
-}
-
-
-void print(Node * node){
-    
-}
-
-
-
-void verif_args(char* id, int nbr){
-    Node* x=find(id);
-    if (x!=NULL && strcmp(x->type, "methode") ==0 ) // methode existe
-        { 
-        if(x->nbr_args > nbr){
-            printf("\n ERROR on line #%d : nombre d'arguments insuffisant .\n",line);
-        }
-        else if(x->nbr_args < nbr){
-            printf("\n ERROR on line #%d : plusieurs arguments, il faut donner %d parametres .\n",line,x->nbr_args);
-        }
-        }
-    else
-        printf("\n ERROR on line #%d : methode non decalree .\n",line);
+    //printf("IDENTIFIER %s NOT DECLARED\n", idName);
+    //exit(0);
+    return -1;
 }
